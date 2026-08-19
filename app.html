@@ -64,9 +64,13 @@ main.wrap{padding:20px 0 60px}
 .canvas-wrap{display:flex;justify-content:center;background:#eef2f6;border-radius:18px;padding:24px;min-height:680px;align-items:center}
 
 .poster{width:min(100%,480px);aspect-ratio:3/4;position:relative;overflow:hidden;border-radius:10px;box-shadow:0 14px 35px #0002;display:flex;flex-direction:column;background:var(--bg);font-family:"Segoe UI",Tahoma,Arial,sans-serif}
+.poster.lang-en{direction:ltr}
 .poster::before{content:"";position:absolute;inset:0;border:5px solid var(--accent);border-radius:10px;pointer-events:none;opacity:.9;z-index:5}
-.imageArea{flex:0 0 42%;position:relative;overflow:hidden;background:#cfd8e0}
+.imageArea{flex:0 0 42%;position:relative;overflow:hidden;background:#cfd8e0;transition:clip-path .15s}
 .imageArea::after{content:"";position:absolute;inset:0;background:linear-gradient(to bottom, transparent 74%, var(--blend) 100%)}
+.poster.shape-frame .imageArea{margin:14px 14px 6px;border-radius:14px;flex-basis:39%}
+.poster.shape-frame .imageArea::after{display:none}
+.poster.shape-frame .imageArea::before{content:"";position:absolute;inset:0;border-radius:14px;box-shadow:0 0 0 2px var(--accent) inset;pointer-events:none}
 .imgPlaceholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#7a8794;font-weight:700;font-size:13px;background:linear-gradient(135deg,#e9eef3,#c8d4df)}
 .imgTile{position:absolute;background-size:cover;background-position:center;box-shadow:0 0 0 2px var(--bg) inset}
 .more{position:absolute;inset:0;background:#000a;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px}
@@ -157,11 +161,18 @@ video{max-width:100%;border-radius:10px;margin-top:10px;display:none}
           <h3>5) الشكل والألوان</h3>
           <label>خلفية التصميم</label>
           <div class="swrow" id="themes"></div>
+          <label style="margin-top:14px">الشكل الهندسي للتصميم</label>
+          <div class="optrow" id="shapes"></div>
           <label style="margin-top:14px">طريقة عرض بيانات الإعلان</label>
           <div class="optrow" id="detailStyles"></div>
         </div>
         <div class="section">
-          <h3>6) معلومات التواصل</h3>
+          <h3>6) لغة الإعلان</h3>
+          <div class="optrow" id="langs"></div>
+          <div class="hint">عبّي بيانات الإعلان بالعربية، وإن رغبتِ بنسخة إنجليزية بدّلي اللغة وعبّي الحقول بالإنجليزية — تُحفظ النسختان معًا ويمكن التنقل بينهما.</div>
+        </div>
+        <div class="section">
+          <h3>7) معلومات التواصل</h3>
           <div class="grid2"><div><label>رقم التواصل</label><input id="phone" placeholder="مثال: 37789079"></div><div><label>اسم النشاط</label><input id="brand" placeholder="اسم المكتب"></div></div>
           <div class="actions">
             <button class="btn primary" id="saveBtn">💾 حفظ ونشر</button>
@@ -195,7 +206,9 @@ video{max-width:100%;border-radius:10px;margin-top:10px;display:none}
 const PE=window.PosterEngine;
 const $=id=>document.getElementById(id);
 let me=null, myAds=[], editingId=null;
-let category="realestate",template=0,images=[],theme="navygold",imgLayout="hero",detailStyle="cards";
+let category="realestate",template=0,images=[],theme="navygold",imgLayout="hero",detailStyle="cards",shape="straight",lang="ar";
+let fieldsData={}; // keys like "title_ar","title_en"
+const LANGS=[{id:"ar",name:"🇸🇦 العربية"},{id:"en",name:"🇬🇧 English"}];
 
 function toast(msg,type){const t=$("toast");t.textContent=msg;t.className="toast show"+(type?(" "+type):"");setTimeout(()=>t.className="toast",2600)}
 
@@ -207,7 +220,7 @@ async function boot(){
     if(me.role==="admin"){location.href="/admin";return}
     $("whoami").textContent="مرحبًا، "+me.name;
   }catch(e){location.href="/";return}
-  renderTemplates();renderFields();renderThemes();applyTheme();renderImgLayouts();renderDetailStyles();renderImageArea();updatePreview();
+  renderTemplates();renderFields();renderThemes();renderShapes();applyShape();renderImgLayouts();renderDetailStyles();renderLangs();renderImageArea();updatePreview();
   await loadAds();
 }
 $("logoutBtn").onclick=async(e)=>{e.preventDefault();await fetch("/api/logout",{method:"POST"});location.href="/"};
@@ -249,9 +262,9 @@ function showList(){$("editorView").style.display="none";$("listView").style.dis
 
 function resetEditor(){
   editingId=null;$("editorTitle").textContent="إعلان جديد";
-  category="realestate";template=0;images=[];theme="navygold";imgLayout="hero";detailStyle="cards";
+  category="realestate";template=0;images=[];theme="navygold";imgLayout="hero";detailStyle="cards";shape="straight";lang="ar";fieldsData={};
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.cat==="realestate"));
-  renderTemplates();renderFields();renderThemes();applyTheme();renderImgLayouts();renderImageArea();renderDetailStyles();renderMedia();
+  renderTemplates();renderFields();renderThemes();renderShapes();applyShape();renderImgLayouts();renderImageArea();renderDetailStyles();renderLangs();renderMedia();
   $("phone").value="";$("brand").value="";
   updatePreview();
 }
@@ -259,11 +272,13 @@ window.editAd=function(id){
   const ad=myAds.find(a=>a.id===id); if(!ad) return;
   editingId=id;$("editorTitle").textContent="تعديل الإعلان";
   category=ad.category;template=ad.template||0;theme=ad.theme;imgLayout=ad.imgLayout;detailStyle=ad.detailStyle;
+  shape=ad.shape||"straight";lang=ad.lang||"ar";
+  if(ad.fieldsData && Object.keys(ad.fieldsData).length) fieldsData=JSON.parse(JSON.stringify(ad.fieldsData));
+  else { fieldsData={}; Object.keys(ad.fields||{}).forEach(k=>fieldsData[k+"_ar"]=ad.fields[k]); }
   images=(ad.images||[]).map(im=>({url:im.url}));
   document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.cat===category));
   renderTemplates();renderFields();
-  PE.configs[category].fields.forEach(([fid])=>{ if(ad.fields&&ad.fields[fid]!=null) set(fid,ad.fields[fid]); });
-  renderThemes();applyTheme();renderImgLayouts();renderImageArea();renderDetailStyles();renderMedia();
+  renderThemes();renderShapes();applyShape();renderImgLayouts();renderImageArea();renderDetailStyles();renderLangs();renderMedia();
   $("phone").value=(ad.contact&&ad.contact.phone)||"";$("brand").value=(ad.contact&&ad.contact.brand)||"";
   updatePreview();
   showEditor();
@@ -285,20 +300,45 @@ function triggerDownload(cv){
 function renderTemplates(){
  const c=PE.configs[category];
  $("templates").innerHTML=c.templates.map((t,i)=>`<div class="tpl ${i===template?'active':''}" data-i="${i}"><div class="mini">${t.title}</div><b>${t.name}</b></div>`).join("");
- document.querySelectorAll(".tpl").forEach(x=>x.onclick=()=>{template=+x.dataset.i;renderTemplates();set("title",c.templates[template].title);updatePreview()});
+ document.querySelectorAll(".tpl").forEach(x=>x.onclick=()=>{template=+x.dataset.i;renderTemplates();if(lang==="ar")set("title",c.templates[template].title);updatePreview()});
 }
 function renderFields(){
- $("fields").innerHTML=PE.configs[category].fields.map(([id,label,v])=>`<label>${label}</label><input id="f_${id}" value="${v.replaceAll('"','&quot;')}" data-key="${id}">`).join("");
- document.querySelectorAll("#fields input").forEach(x=>x.oninput=updatePreview);
+ $("fields").innerHTML=PE.configs[category].fields.map(([id,label,v])=>{
+  const key=id+"_"+lang;
+  if(fieldsData[key]===undefined) fieldsData[key]= lang==="ar" ? v : "";
+  const safe=String(fieldsData[key]).replaceAll('"','&quot;');
+  const shownLabel = lang==="en" ? (PE.EN_FIELD_LABELS[id]||label) : label;
+  return `<label>${shownLabel}</label><input id="f_${id}" value="${safe}" data-key="${id}" placeholder="${lang==="en"?"English text":""}">`;
+ }).join("");
+ document.querySelectorAll("#fields input").forEach(x=>x.oninput=()=>{fieldsData[x.dataset.key+"_"+lang]=x.value;updatePreview()});
 }
-function set(id,v){const x=$("f_"+id);if(x)x.value=v}
-function val(id,fallback){return ($("f_"+id)&&$("f_"+id).value)||fallback||""}
+function set(id,v){fieldsData[id+"_"+lang]=v;const x=$("f_"+id);if(x)x.value=v}
+function val(id,fallback){return fieldsData[id+"_"+lang]||fallback||""}
 
 function renderThemes(){
  $("themes").innerHTML=PE.THEMES.map(t=>`<div class="sw ${t.id===theme?'active':''}" data-id="${t.id}"><div class="swdot" style="background:linear-gradient(135deg,${t.c[0]},${t.c[1]})"></div><span>${t.name}</span></div>`).join("");
- document.querySelectorAll("#themes .sw").forEach(x=>x.onclick=()=>{theme=x.dataset.id;renderThemes();applyTheme()});
+ document.querySelectorAll("#themes .sw").forEach(x=>x.onclick=()=>{theme=x.dataset.id;renderThemes();applyPosterClasses()});
 }
-function applyTheme(){$("poster").className="poster theme-"+theme}
+function applyPosterClasses(){
+ let cls="poster theme-"+theme;
+ if(shape==="frame") cls+=" shape-frame";
+ if(lang==="en") cls+=" lang-en";
+ $("poster").className=cls;
+}
+function renderShapes(){
+ $("shapes").innerHTML=PE.SHAPES.map(s=>`<div class="opt ${s.id===shape?'active':''}" data-id="${s.id}">${s.name}</div>`).join("");
+ document.querySelectorAll("#shapes .opt").forEach(x=>x.onclick=()=>{shape=x.dataset.id;renderShapes();applyShape()});
+}
+function applyShape(){
+ const area=$("imageArea");
+ const pts=PE.shapeClipPoints(shape);
+ area.style.clipPath = pts ? "polygon("+pts.map(([x,y])=>`${(x*100).toFixed(2)}% ${(y*100).toFixed(2)}%`).join(",")+")" : "";
+ applyPosterClasses();
+}
+function renderLangs(){
+ $("langs").innerHTML=LANGS.map(l=>`<div class="opt ${l.id===lang?'active':''}" data-id="${l.id}">${l.name}</div>`).join("");
+ document.querySelectorAll("#langs .opt").forEach(x=>x.onclick=()=>{lang=x.dataset.id;renderLangs();renderFields();applyPosterClasses();updatePreview()});
+}
 function renderImgLayouts(){
  $("imgLayouts").innerHTML=PE.IMGLAYOUTS.map(l=>`<div class="opt ${l.id===imgLayout?'active':''}" data-id="${l.id}"><span class="ic">${l.ic}</span>${l.name}</div>`).join("");
  document.querySelectorAll("#imgLayouts .opt").forEach(x=>x.onclick=()=>{imgLayout=x.dataset.id;renderImgLayouts();renderImageArea()});
@@ -311,7 +351,7 @@ function renderDetailStyles(){
 function currentFields(){const o={};PE.configs[category].fields.forEach(([id])=>o[id]=val(id));return o}
 
 function renderDetailsPreview(){
- const entries=PE.fieldEntries(category, currentFields());
+ const entries=PE.fieldEntries(category, currentFields(), lang);
  const box=$("pDetails");box.className="details style-"+detailStyle;
  if(detailStyle==="cards"){
   box.innerHTML=entries.map(e=>`<div class="detail"><span class="dLabel">${e.icon} ${escapeHtml(e.label)}</span><span class="dValue">${escapeHtml(e.value)}</span></div>`).join("");
@@ -352,11 +392,11 @@ function fitBody(){
 }
 function updatePreview(){
  const c=PE.configs[category];
- $("catLabel").textContent=c.label;
+ $("catLabel").textContent = lang==="en" ? (PE.EN_CATEGORY_LABELS[category]||c.label) : c.label;
  $("pTitle").textContent=val("title");
  $("pSub").textContent=val("location");
- $("pPrice").innerHTML=`<small>السعر</small>${val("price","تواصل معنا")}`;
- $("pBrand").textContent=$("brand").value||"اسم النشاط";
+ $("pPrice").innerHTML=`<small>${lang==="en"?"Price":"السعر"}</small>${val("price",lang==="en"?"Contact us":"تواصل معنا")}`;
+ $("pBrand").textContent=$("brand").value||(lang==="en"?"Business name":"اسم النشاط");
  $("pPhone").textContent="📞 "+($("phone").value||"00000000");
  renderDetailsPreview();
  requestAnimationFrame(fitBody);
@@ -383,7 +423,7 @@ window.removeImg=function(i){images.splice(i,1);renderMedia();renderImageArea()}
 $("phone").oninput=updatePreview;$("brand").oninput=updatePreview;
 
 function buildState(){
- return {category,template,theme,imgLayout,detailStyle,fields:currentFields(),contact:{brand:$("brand").value,phone:$("phone").value},images};
+ return {category,template,theme,imgLayout,detailStyle,shape,lang,fields:currentFields(),fieldsData,contact:{brand:$("brand").value,phone:$("phone").value},images};
 }
 
 $("downloadBtn").onclick=async()=>{
