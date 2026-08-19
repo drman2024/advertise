@@ -224,7 +224,8 @@ const server = http.createServer(async (req, res) => {
           id: genId(), userId: user.id,
           category: body.category || "realestate", template: body.template || 0,
           theme: body.theme || "navygold", imgLayout: body.imgLayout || "hero", detailStyle: body.detailStyle || "cards",
-          fields: body.fields || {}, contact: body.contact || {}, images,
+          shape: body.shape || "straight", lang: body.lang || "ar",
+          fields: body.fields || {}, fieldsData: body.fieldsData || {}, contact: body.contact || {}, images,
           status: "pending", createdAt: Date.now(), updatedAt: Date.now()
         };
         const ads = readJSON(ADS_FILE);
@@ -260,7 +261,8 @@ const server = http.createServer(async (req, res) => {
         Object.assign(ad, {
           category: body.category || ad.category, template: body.template != null ? body.template : ad.template,
           theme: body.theme || ad.theme, imgLayout: body.imgLayout || ad.imgLayout, detailStyle: body.detailStyle || ad.detailStyle,
-          fields: body.fields || ad.fields, contact: body.contact || ad.contact, images,
+          shape: body.shape || ad.shape || "straight", lang: body.lang || ad.lang || "ar",
+          fields: body.fields || ad.fields, fieldsData: body.fieldsData || ad.fieldsData || {}, contact: body.contact || ad.contact, images,
           updatedAt: Date.now()
         });
         if (isOwner && !isAdmin) ad.status = "pending"; // edits by the owner go back for review
