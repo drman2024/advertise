@@ -263,11 +263,11 @@ async function renderExportCanvas(state){
   });
  }
 
- /* brand watermark badge on top of the loaded ad image */
+ /* brand watermark badge, centered at the top of the design */
  try{
   const logo=await loadImg("/icons/header-logo.png");
   const lr=32, pad=22;
-  const lx = RTL ? W-pad-lr : pad+lr, ly = pad+lr;
+  const lx = W/2, ly = pad+lr;
   ctx.save();
   ctx.beginPath();ctx.arc(lx,ly,lr+5,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,0.94)";ctx.fill();
   ctx.beginPath();ctx.arc(lx,ly,lr,0,Math.PI*2);ctx.closePath();ctx.clip();
