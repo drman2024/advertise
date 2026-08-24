@@ -24,7 +24,10 @@ th,td{padding:11px 12px;text-align:right;font-size:13px;border-bottom:1px solid 
 th{background:#f6f8fb;font-size:12px;color:var(--muted)}
 tr:last-child td{border-bottom:0}
 .adthumb{width:46px;height:46px;border-radius:8px;object-fit:cover;background:#eef2f6}
-.rowActions{display:flex;gap:6px;flex-wrap:wrap}
+.rowActions{display:flex;gap:6px;flex-wrap:nowrap}
+.tableWrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:14px}
+table{min-width:760px}
+.rowActions .btn{white-space:nowrap}
 .modal{position:fixed;inset:0;background:#00000070;display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
 .modal.show{display:flex}
 .modalcard{background:#fff;border-radius:18px;padding:20px;max-width:420px;width:100%;max-height:90vh;overflow:auto;text-align:center}
@@ -55,18 +58,18 @@ tr:last-child td{border-bottom:0}
       <button data-f="approved">معتمد</button>
       <button data-f="rejected">مرفوض</button>
     </div>
-    <table>
+    <div class="tableWrap"><table>
       <thead><tr><th></th><th>العنوان</th><th>القسم</th><th>صاحب الإعلان</th><th>الحالة</th><th>تاريخ الإنشاء</th><th>إجراءات</th></tr></thead>
       <tbody id="adsBody"></tbody>
-    </table>
+    </table></div>
     <div class="empty" id="adsEmpty" style="display:none"><span class="ic">📭</span>لا توجد إعلانات مطابقة.</div>
   </div>
 
   <div id="usersPane" style="display:none">
-    <table>
+    <div class="tableWrap"><table>
       <thead><tr><th>الاسم</th><th>البريد الإلكتروني</th><th>عدد الإعلانات</th><th>تاريخ التسجيل</th><th>الحالة</th><th>إجراءات</th></tr></thead>
       <tbody id="usersBody"></tbody>
-    </table>
+    </table></div>
     <div class="empty" id="usersEmpty" style="display:none"><span class="ic">👤</span>لا يوجد مستخدمون بعد.</div>
   </div>
 </main>
